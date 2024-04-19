@@ -9,7 +9,7 @@
 #include <agent/event.h>
 #include "agent/parser.h"
 
-// export LD_LIBRARY_PATH=/home/zhulin/workspace/Sun/agent/lib:$LD_LIBRARY_PATH:
+// export LD_LIBRARY_PATH=/home/zhulin/workspace/Sun-agent/lib:$LD_LIBRARY_PATH:
 // g++ main.cpp ./src/*.cpp -o main -I ./include/ -L ./lib/ -lelasticlient -ljsoncpp -lcpr -lcurl -std=c++17
 using namespace std;
 
