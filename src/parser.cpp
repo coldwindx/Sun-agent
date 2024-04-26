@@ -38,6 +38,17 @@ static unordered_map<std::string, int> str2etype = {
     {"CallStack", 0x200000},
 };
 
+static std::string subreplace(const std::string &resource_str, const std::string &sub_str, const std::string &new_str)
+{
+    std::string dst_str = resource_str;
+    std::string::size_type pos = 0;
+    while ((pos = dst_str.find(sub_str)) != std::string::npos) // 替换所有指定子串
+    {
+        dst_str.replace(pos, sub_str.length(), new_str);
+    }
+    return dst_str;
+}
+
 Event LogParser::parse(const Json::Value &json)
 {
     Event event;
@@ -59,16 +70,12 @@ Event LogParser::parse(const Json::Value &json)
     {
         long long uniqueKey = json["_source"]["args"]["UniqueProcessKey"].asInt64();
         event.oid = event.pid;
-        event.oname = json["_source"]["args"]["CommandLine"].asString();
+        event.oname = subreplace(json["_source"]["args"]["CommandLine"].asString(), "\n", " ");
 
         shared_ptr<Process> p = make_shared<Process>(uniqueKey, event.pid, event.pname, event.oname, event.ppid);
         // 获取进程标签
         p->label = getLabel(p, event);
         p->index = event.index;
-
-        // Json::FastWriter writer;
-        // // if (p->label)
-        // cout << writer.write(json) << endl;
 
         cache.insert(p);
         // 加入通道
@@ -84,15 +91,13 @@ Event LogParser::parse(const Json::Value &json)
     }
     if (event.eventid & 0xC)
     {
-
-        event.oname = json["_source"]["args"]["TThreadId"].asString();
+        event.oname = subreplace(json["_source"]["args"]["TThreadId"].asString(), "\n", " ");
         // 加入通道
         cache.add(event, 0);
     }
     if (event.eventid & 0x10)
     {
-
-        event.oname = json["_source"]["args"]["FileName"].asString();
+        event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
         // 加入通道
         cache.add(event, 0);
     }
@@ -100,13 +105,13 @@ Event LogParser::parse(const Json::Value &json)
     {
 
         event.oid = json["_source"]["args"]["FileKey"].asInt64();
-        event.oname = json["_source"]["args"]["FileName"].asString();
+        event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
         // 加入通道
         cache.add(event, 0);
     }
     if (event.eventid & 0x1FC000) // 注册表操作
     {
-        event.oname = json["_source"]["args"]["KeyName"].asString();
+        event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
         // 加入通道
         cache.add(event, 0);
     }
@@ -121,16 +126,16 @@ Event LogParser::parse(const Json::Value &json)
         {
             event.oname += line.substr(1 + line.find_last_of(':')) + " ";
         }
+        event.oname = subreplace(event.oname, "\n", " ");
         // 加入通道
         cache.add(event, 0);
     }
-
     return event;
 }
 
 int LogParser::getLabel(std::shared_ptr<Process> p, const Event &event)
 {
-
+    // 根据勒索软件的派生关系，确定性的恶意标签
     if (event.index == "k8c64c2ff302f64cf326897af8176d68e" && string::npos != p->name.find("wscript.exe"))
         return 1;
     if (event.index == "kd2ae2596560a8a7591194f7c737bc802" && string::npos != p->name.find("123.exe"))
@@ -143,7 +148,11 @@ int LogParser::getLabel(std::shared_ptr<Process> p, const Event &event)
         auto p = cache.getProcess(event.ppid);
         return p->label;
     }
-    return 0;
+    if (string::npos != event.ppname.find(event.index.substr(1)))
+        return 1;
+    if (event.ppname == "@WanaDecryptor@.exe")
+        return 1;
+    return 1;
 }
 Event LabelParser::parse(const Json::Value &json)
 {

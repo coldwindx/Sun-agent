@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <iostream>
 #include <json/json.h>
 
 struct Event
@@ -16,4 +17,6 @@ struct Event
     int tid;               // 线程ID
     long long oid;         // 事件对象ID
     std::string oname;     // 事件对象名
+
+    friend std::ostream &operator<<(std::ostream &out, const Event &event);
 };

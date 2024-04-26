@@ -1,7 +1,10 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+#include <algorithm>
+#include "json/json.h"
 #include "agent/process.h"
+
 using namespace std;
 
 void Cache::insert(std::shared_ptr<Process> p)
@@ -11,25 +14,27 @@ void Cache::insert(std::shared_ptr<Process> p)
 void Cache::add(const Event &event, int cid)
 {
     if (!procCache.count(event.pid))
-        return; // 不在记录内的进程
-    // procCache[event.pid] = make_shared<Process>(event.pid, event.pid, event.pname, event.pcmd, event.ppid);
+    {
+        procCache[event.pid] = make_shared<Process>(0L, event.pid, event.pname, event.pcmd, event.ppid);
+        procCache[event.pid]->index = event.index;
+    }
 
     auto &channel = procChannel[event.pid];
-    channel[cid].push_back(move(event.eventname));
-    channel[cid].push_back(move(event.oname));
+    channel[cid] += " " + event.eventname + " " + event.oname;
 
     shared_ptr<Process> p = procCache[event.pid];
 
-    if (++(p->cntevents) < 10)
+    if (++(p->cntevents) < 8)
         return;
     save(event.pid);
-    p->cntevents %= 10;
+    p->cntevents %= 8;
 }
 void Cache::remove(int pid)
 {
     if (procCache.count(pid))
     {
-        save(pid);
+        if (0 < procCache[pid]->cntevents)
+            save(pid);
         procCache.erase(pid);
         procChannel.erase(pid);
     }
@@ -37,6 +42,9 @@ void Cache::remove(int pid)
 
 void Cache::clear()
 {
+    for (auto &[pid, p] : procCache)
+        if (0 < p->cntevents)
+            save(pid);
     procCache.clear();
     procChannel.clear();
 }
@@ -60,14 +68,22 @@ void Cache::save(int pid)
 {
     auto p = procCache[pid];
     auto &channel = procChannel[pid];
-    ofstream fout(this->filename, ios::app);
-    fout << p->index << "\t" << p->uniqueKey << "\t" << p->pid << "\t" << p->label << "\n";
-    for (int i = 0; i < 1; ++i)
-    {
-        for (auto &x : channel[i])
-            fout << '\t' << x; // 命令行中存在空格，不能使用空格划分
-        fout << "\n";
-        channel[i].clear();
-    }
-    fout.close();
+
+    Json::Value json;
+    json["index"] = p->index;
+    json["unique_key"] = static_cast<Json::Int64>(p->uniqueKey);
+    json["pid"] = p->pid;
+    json["label"] = p->label;
+    json["channel"] = channel[0];
+    channel[0].clear();
+
+    // if (p->label == 1)
+    // {
+    //     ofstream fout(this->filename, ios::out | ios::app);
+    //     if (!fout.is_open())
+    //         throw runtime_error("error：can not find or create the file which named \"" + this->filename + "\".");
+    //     Json::FastWriter sw; // 单行输出，效率更高
+    //     fout << sw.write(json);
+    //     fout.close();
+    // }
 }
