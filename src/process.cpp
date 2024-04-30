@@ -73,17 +73,18 @@ void Cache::save(int pid)
     json["index"] = p->index;
     json["unique_key"] = static_cast<Json::Int64>(p->uniqueKey);
     json["pid"] = p->pid;
+    json["pname"] = p->name;
     json["label"] = p->label;
     json["channel"] = channel[0];
     channel[0].clear();
 
     // if (p->label == 1)
     // {
-    //     ofstream fout(this->filename, ios::out | ios::app);
-    //     if (!fout.is_open())
-    //         throw runtime_error("error：can not find or create the file which named \"" + this->filename + "\".");
-    //     Json::FastWriter sw; // 单行输出，效率更高
-    //     fout << sw.write(json);
-    //     fout.close();
+    ofstream fout(this->filename, ios::out | ios::app);
+    if (!fout.is_open())
+        throw runtime_error("error：can not find or create the file which named \"" + this->filename + "\".");
+    Json::FastWriter sw; // 单行输出，效率更高
+    fout << sw.write(json);
+    fout.close();
     // }
 }

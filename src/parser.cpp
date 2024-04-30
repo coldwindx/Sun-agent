@@ -76,7 +76,8 @@ Event LogParser::parse(const Json::Value &json)
         // 获取进程标签
         p->label = getLabel(p, event);
         p->index = event.index;
-
+        // cout << p->ppid << "-->" << p->pid << "(" << p->label << ")"
+        //      << ":" << p->cmd << endl;
         cache.insert(p);
         // 加入通道
         cache.add(event, 0);
@@ -133,9 +134,82 @@ Event LogParser::parse(const Json::Value &json)
     return event;
 }
 
+static unordered_set<string> white = {
+    "360se.exe",
+    "aitagent.exe",
+    "conhost.exe",
+    "cscript.exe",
+    "explorer.exe",
+    "fastpdf.exe",
+    "fphelper.exe",
+    "icacls.exe",
+    "iisreset.exe",
+    "iisrstas.exe",
+    "lsass.exe",
+    "MicrosoftEdgeUpdate.exe",
+    "mshta.exe",
+    "mtstocom.exe",
+    "net.exe",
+    "netsh.exe",
+    "ngentask.exe",
+    "olgywe.exe",
+    "osk.exe",
+    "p1q135no.exe",
+    "PING.EXE",
+    "QQBrowser.exe",
+    "schtasks.exe",
+    "SearchFilterHost.exe",
+    "SearchIndexer.exe",
+    "SearchProtocolHost.exe",
+    "SECOH-QAD.exe",
+    "ServiceModelReg.exe",
+    "services.exe",
+    "setupsqm.exe",
+    "sevnz.exe",
+    "sftp-server.exe",
+    "SkyDrive.exe",
+    "SMSvcHost.exe",
+    "SppExtComObj.Exe",
+    "sppsvc.exe",
+    "sshd.exe",
+    "StellarPlayer.exe",
+    "svchost.exe",
+    "systems.exe",
+    "takeown.exe",
+    "taskdl.exe",
+    "taskeng.exe",
+    "taskhostex.exe",
+    "timeout.exe",
+    "Updater.exe",
+    "w32tm.exe",
+    "WerFault.exe",
+    "wermgr.exe",
+    "WinRAR.exe",
+    "wpscloudsvr.exe",
+    "wpsupdate.exe"};
+static unordered_set<string> black = {
+    "C:\\Windows\\sysWOW64\\wbem\\wmiprvse.exe -secured -Embedding",
+    "C:\\Windows\\system32\\svchost.exe -k netsvcs",
+    "C:\\Windows\\system32\\svchost.exe -k NetworkService",
+    "C:\\Windows\\system32\\SearchIndexer.exe /Embedding",
+    "C:\\Windows\\System32\\svchost.exe -k swprv",
+    "C:\\Windows\\system32\\wbem\\wmiprvse.exe -secured -Embedding",
+    "\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
+    "C:\\Windows\\system32\\vssvc.exe",
+    "C:\\Windows\\System32\\vdsldr.exe -Embedding",
+    "C:\\Windows\\SysWOW64\\DllHost.exe /Processid:{45BA127D-10A8-46EA-8AB7-56EA9078943C}",
+    "C:\\Windows\\system32\\DllHost.exe /Processid:{AB8902B4-09CA-4BB6-B78D-A8F59079A8D5}",
+    "C:\\Windows\\System32\\svchost.exe -k swprv",
+};
+
 int LogParser::getLabel(std::shared_ptr<Process> p, const Event &event)
 {
+    // 来自良性样本的全部为正常
+    if (event.index == "kcyw-2024_01_11-000001")
+        return 0;
     // 根据勒索软件的派生关系，确定性的恶意标签
+    if (event.index == "k0dc058b5d67fee098b9e7b7babc48fa1" && p->name == "Abandon.exe")
+        return 1;
     if (event.index == "k8c64c2ff302f64cf326897af8176d68e" && string::npos != p->name.find("wscript.exe"))
         return 1;
     if (event.index == "kd2ae2596560a8a7591194f7c737bc802" && string::npos != p->name.find("123.exe"))
@@ -150,8 +224,13 @@ int LogParser::getLabel(std::shared_ptr<Process> p, const Event &event)
     }
     if (string::npos != event.ppname.find(event.index.substr(1)))
         return 1;
-    if (event.ppname == "@WanaDecryptor@.exe")
+    // 根据命令行确定恶意标签
+    if (black.count(p->cmd))
         return 1;
+    // 系统进程设置为良性
+    if (white.count(p->name))
+        return 0;
+    // 默认为恶意
     return 1;
 }
 Event LabelParser::parse(const Json::Value &json)
