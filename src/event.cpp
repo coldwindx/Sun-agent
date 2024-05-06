@@ -1,4 +1,5 @@
 #include "agent/event.h"
+using namespace std;
 
 std::ostream &operator<<(std::ostream &out, const Event &event)
 {

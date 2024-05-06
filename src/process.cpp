@@ -37,7 +37,8 @@ void Cache::remove(int pid)
             save(pid);
         auto p = procCache[pid];
         if (procCache.count(p->ppid))
-            cout << p->ppid << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
+            cout << p->ppid << "(" << procCache[p->ppid]->label << ")"
+                 << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
         else
             cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
         procCache.erase(pid);
@@ -50,7 +51,8 @@ void Cache::clear()
     for (auto &[pid, p] : procCache)
     {
         if (procCache.count(p->ppid))
-            cout << p->ppid << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
+            cout << p->ppid << "(" << procCache[p->ppid]->label << ")"
+                 << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
         else
             cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
         if (0 < p->cntevents)

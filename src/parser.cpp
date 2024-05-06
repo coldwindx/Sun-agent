@@ -71,10 +71,11 @@ Event LogParser::parse(const Json::Value &json)
         long long uniqueKey = json["_source"]["args"]["UniqueProcessKey"].asInt64();
         event.oid = event.pid;
         event.oname = subreplace(json["_source"]["args"]["CommandLine"].asString(), "\n", " ");
+        event.cid = 0;
 
         shared_ptr<Process> p = make_shared<Process>(uniqueKey, event.pid, event.pname, event.oname, event.ppid);
         // 获取进程标签
-        p->label = getLabel(p, event);
+        p->label = Label::label(event);
         p->index = event.index;
         // cout << p->ppid << "-->" << p->pid << "(" << p->label << ")"
         //      << ":" << p->cmd << endl;
@@ -84,6 +85,7 @@ Event LogParser::parse(const Json::Value &json)
     }
     if (event.eventid == 0x2)
     {
+        event.cid = 0;
         Cache &cache = Singleton<Cache>::getInstance();
         // 加入通道
         cache.add(event, 0);
@@ -92,19 +94,21 @@ Event LogParser::parse(const Json::Value &json)
     }
     if (event.eventid & 0xC)
     {
+        event.cid = 0;
         event.oname = subreplace(json["_source"]["args"]["TThreadId"].asString(), "\n", " ");
         // 加入通道
         cache.add(event, 0);
     }
     if (event.eventid & 0x10)
     {
+        event.cid = 0;
         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
         // 加入通道
         cache.add(event, 0);
     }
     if (event.eventid & 0x3fe0) // 文件操作
     {
-
+        event.cid = 0;
         event.oid = json["_source"]["args"]["FileKey"].asInt64();
         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
         // 加入通道
@@ -112,13 +116,14 @@ Event LogParser::parse(const Json::Value &json)
     }
     if (event.eventid & 0x1FC000) // 注册表操作
     {
+        event.cid = 0;
         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
         // 加入通道
         cache.add(event, 0);
     }
     if (event.eventid & 0x200000)
     {
-
+        event.cid = 0;
         // API序列
         stringstream ss;
         string line;
@@ -134,7 +139,7 @@ Event LogParser::parse(const Json::Value &json)
     return event;
 }
 
-static unordered_set<string> white = {
+unordered_set<string> Label::white = {
     "360se.exe",
     "aitagent.exe",
     "conhost.exe",
@@ -187,7 +192,7 @@ static unordered_set<string> white = {
     "WinRAR.exe",
     "wpscloudsvr.exe",
     "wpsupdate.exe"};
-static unordered_set<string> black = {
+unordered_set<string> Label::black = {
     "C:\\Windows\\System32\\vds.exe",
     "C:\\Windows\\sysWOW64\\wbem\\wmiprvse.exe -secured -Embedding",
     "C:\\Windows\\system32\\svchost.exe -k netsvcs",
@@ -195,46 +200,49 @@ static unordered_set<string> black = {
     "C:\\Windows\\system32\\SearchIndexer.exe /Embedding",
     "C:\\Windows\\System32\\svchost.exe -k swprv",
     "C:\\Windows\\system32\\wbem\\wmiprvse.exe -secured -Embedding",
-    // "C:\\Windows\\system32\\wbem\\wmiprvse.exe -Embedding",
+    "C:\\Windows\\system32\\wbem\\wmiprvse.exe -Embedding",
     "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
     "C:\\Windows\\system32\\vssvc.exe",
+    "C:\\Windows\\System32\vds.exe",
     "C:\\Windows\\System32\\vdsldr.exe -Embedding",
     "C:\\Windows\\SysWOW64\\DllHost.exe /Processid:{45BA127D-10A8-46EA-8AB7-56EA9078943C}",
     "C:\\Windows\\system32\\DllHost.exe /Processid:{AB8902B4-09CA-4BB6-B78D-A8F59079A8D5}",
     "C:\\Windows\\System32\\svchost.exe -k swprv",
-    // "C:\\Windows\\system32\\rundll32.exe sysmain.dll,PfSvWsSwapAssessmentTask",
-    // "C:\\Windows\\system32\\wbem\\unsecapp.exe -Embedding",
-    // "netsh  advfirewall set currentprofile state off",
-    // "netsh  firewall set opmode mode=disable",
-    // "C:\\Windows\\system32\\wbengine.exe",
+    "C:\\Windows\\system32\\rundll32.exe sysmain.dll,PfSvWsSwapAssessmentTask",
+    "C:\\Windows\\system32\\wbem\\unsecapp.exe -Embedding",
+    "netsh  advfirewall set currentprofile state off",
+    "netsh  firewall set opmode mode=disable",
+    "C:\\Windows\\system32\\wbengine.exe",
+    "timeout  -c 5",
 };
 
-int LogParser::getLabel(std::shared_ptr<Process> p, const Event &event)
+int Label::label(const Event &event)
 {
     // 来自良性样本的全部为正常
     if (event.index == "kcyw-2024_01_11-000001")
         return 0;
     // 勒索软件启动进程
-    if (event.index == "k0dc058b5d67fee098b9e7b7babc48fa1" && p->name == "Abandon.exe")
+    if (event.index == "k0dc058b5d67fee098b9e7b7babc48fa1" && event.pname == "Abandon.exe")
         return 1;
-    if (event.index == "k8c64c2ff302f64cf326897af8176d68e" && string::npos != p->name.find("wscript.exe"))
+    if (event.index == "k8c64c2ff302f64cf326897af8176d68e" && string::npos != event.pname.find("wscript.exe"))
         return 1;
-    if (event.index == "kd2ae2596560a8a7591194f7c737bc802" && string::npos != p->name.find("123.exe"))
+    if (event.index == "kd2ae2596560a8a7591194f7c737bc802" && string::npos != event.pname.find("123.exe"))
         return 1;
     if (string::npos != event.pname.find(event.index.substr(1)))
         return 1;
-    if (string::npos != event.ppname.find(event.index.substr(1)))
-        return 1;
     // 黑白名单
-    if (black.count(p->cmd))
+    if (black.count(event.pcmd))
         return 1;
-    if (white.count(p->name))
+    if (white.count(event.pname))
         return 0;
-    // 派生关系
+    // 基于派生关系
     Cache &cache = Singleton<Cache>::getInstance();
     if (cache.have(event.ppid))
     {
         auto p = cache.getProcess(event.ppid);
+        if (event.eventid == 0x1 && event.ppid == 2832)
+            cout << event << endl;
+
         return p->label;
     }
     // 默认为恶意

@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.17)
 project(SUN-AGENT)
 set(CMAKE_CXX_STANDARD 17)
+set(PYTORCH /home/zhulin/anaconda3/envs/torch)
 include_directories(
     /home/zhulin/anaconda3/envs/torch/include/python3.8
     ${CMAKE_CURRENT_SOURCE_DIR}/include
