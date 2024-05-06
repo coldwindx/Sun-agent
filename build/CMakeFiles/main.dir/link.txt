@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/main.dir/main.cpp.o CMakeFiles/main.dir/src/event.cpp.o CMakeFiles/main.dir/src/parser.cpp.o CMakeFiles/main.dir/src/process.cpp.o -o main   -L/home/zhulin/anaconda3/envs/torch/lib  -L/home/zhulin/workspace/Sun-agent/lib  -Wl,-rpath,/home/zhulin/anaconda3/envs/torch/lib:/home/zhulin/workspace/Sun-agent/lib -lelasticlient -ljsoncpp -lcpr -lcurl -lpython3.8 
