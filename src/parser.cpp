@@ -188,18 +188,25 @@ static unordered_set<string> white = {
     "wpscloudsvr.exe",
     "wpsupdate.exe"};
 static unordered_set<string> black = {
+    "C:\\Windows\\System32\\vds.exe",
     "C:\\Windows\\sysWOW64\\wbem\\wmiprvse.exe -secured -Embedding",
     "C:\\Windows\\system32\\svchost.exe -k netsvcs",
     "C:\\Windows\\system32\\svchost.exe -k NetworkService",
     "C:\\Windows\\system32\\SearchIndexer.exe /Embedding",
     "C:\\Windows\\System32\\svchost.exe -k swprv",
     "C:\\Windows\\system32\\wbem\\wmiprvse.exe -secured -Embedding",
-    "\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
+    // "C:\\Windows\\system32\\wbem\\wmiprvse.exe -Embedding",
+    "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
     "C:\\Windows\\system32\\vssvc.exe",
     "C:\\Windows\\System32\\vdsldr.exe -Embedding",
     "C:\\Windows\\SysWOW64\\DllHost.exe /Processid:{45BA127D-10A8-46EA-8AB7-56EA9078943C}",
     "C:\\Windows\\system32\\DllHost.exe /Processid:{AB8902B4-09CA-4BB6-B78D-A8F59079A8D5}",
     "C:\\Windows\\System32\\svchost.exe -k swprv",
+    // "C:\\Windows\\system32\\rundll32.exe sysmain.dll,PfSvWsSwapAssessmentTask",
+    // "C:\\Windows\\system32\\wbem\\unsecapp.exe -Embedding",
+    // "netsh  advfirewall set currentprofile state off",
+    // "netsh  firewall set opmode mode=disable",
+    // "C:\\Windows\\system32\\wbengine.exe",
 };
 
 int LogParser::getLabel(std::shared_ptr<Process> p, const Event &event)
@@ -207,7 +214,7 @@ int LogParser::getLabel(std::shared_ptr<Process> p, const Event &event)
     // 来自良性样本的全部为正常
     if (event.index == "kcyw-2024_01_11-000001")
         return 0;
-    // 根据勒索软件的派生关系，确定性的恶意标签
+    // 勒索软件启动进程
     if (event.index == "k0dc058b5d67fee098b9e7b7babc48fa1" && p->name == "Abandon.exe")
         return 1;
     if (event.index == "k8c64c2ff302f64cf326897af8176d68e" && string::npos != p->name.find("wscript.exe"))
@@ -216,77 +223,20 @@ int LogParser::getLabel(std::shared_ptr<Process> p, const Event &event)
         return 1;
     if (string::npos != event.pname.find(event.index.substr(1)))
         return 1;
+    if (string::npos != event.ppname.find(event.index.substr(1)))
+        return 1;
+    // 黑白名单
+    if (black.count(p->cmd))
+        return 1;
+    if (white.count(p->name))
+        return 0;
+    // 派生关系
     Cache &cache = Singleton<Cache>::getInstance();
     if (cache.have(event.ppid))
     {
         auto p = cache.getProcess(event.ppid);
         return p->label;
     }
-    if (string::npos != event.ppname.find(event.index.substr(1)))
-        return 1;
-    // 根据命令行确定恶意标签
-    if (black.count(p->cmd))
-        return 1;
-    // 系统进程设置为良性
-    if (white.count(p->name))
-        return 0;
     // 默认为恶意
     return 1;
-}
-Event LabelParser::parse(const Json::Value &json)
-{
-    Event event;
-    uint64_t ts = json["_source"]["TimeStamp"].asInt64();
-    event.timestamp = (ts - EPOCH_AS_FILETIME) / 10000;
-    event.eventname = json["_source"]["Event"].asString();
-    event.eventid = str2etype[event.eventname];
-    event.pid = json["_source"]["PID"].asInt();
-    event.pname = json["_source"]["PName"].asString();
-    event.pcmd = json["_source"]["args"]["CommandLine"].asString();
-    event.ppid = json["_source"]["PPID"].asInt();
-    event.ppname = json["_source"]["PPName"].asString();
-    event.tid = json["_source"]["TID"].asInt();
-
-    if (event.eventid == 0x1)
-    {
-        int label = 0;
-        string index = json["_index"].asString().substr(1);
-        if (string::npos != event.pname.find(index))
-        {
-            label = 1;
-        }
-        else
-        {
-            Cache &cache = Singleton<Cache>::getInstance();
-            if (cache.have(event.ppid))
-            {
-                auto p = cache.getProcess(event.ppid);
-                label = p->label;
-            }
-        }
-        long long uniqueKey = json["_source"]["args"]["UniqueProcessKey"].asInt64();
-        event.oid = event.pid;
-        event.oname = json["_source"]["args"]["CommandLine"].asString();
-        shared_ptr<Process> p = make_shared<Process>(uniqueKey, event.pid, event.pname, event.oname, event.ppid);
-        p->label = label;
-        Cache &cache = Singleton<Cache>::getInstance();
-        cache.insert(p);
-        if (1 == label)
-        {
-            ofstream fout("/mnt/sdd1/data/sun/labels.txt", ios::app);
-            fout << json["_index"].asString() << " " << uniqueKey << " " << event.pid << "\n";
-            fout.close();
-            // cout << json["_index"].asString() << " " << uniqueKey << " " << event.pid << " " << event.pname << "\n";
-        }
-
-        // printf("%lld, %d, %d, %d, %s\n", uniqueKey, event.pid, event.ppid, label, event.oname.c_str());
-        return event;
-    }
-    if (event.eventid == 0x2)
-    {
-        Cache &cache = Singleton<Cache>::getInstance();
-        cache.remove(event.pid);
-        return event;
-    }
-    return event;
 }

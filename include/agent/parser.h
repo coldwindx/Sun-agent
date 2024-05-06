@@ -11,9 +11,3 @@ public:
     static int getLabel(std::shared_ptr<Process> p, const Event &event);
     Event parse(const Json::Value &json);
 };
-
-class LabelParser
-{
-public:
-    static Event parse(const Json::Value &json);
-};

@@ -35,6 +35,11 @@ void Cache::remove(int pid)
     {
         if (0 < procCache[pid]->cntevents)
             save(pid);
+        auto p = procCache[pid];
+        if (procCache.count(p->ppid))
+            cout << p->ppid << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
+        else
+            cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
         procCache.erase(pid);
         procChannel.erase(pid);
     }
@@ -43,8 +48,14 @@ void Cache::remove(int pid)
 void Cache::clear()
 {
     for (auto &[pid, p] : procCache)
+    {
+        if (procCache.count(p->ppid))
+            cout << p->ppid << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
+        else
+            cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
         if (0 < p->cntevents)
             save(pid);
+    }
     procCache.clear();
     procChannel.clear();
 }
@@ -80,11 +91,11 @@ void Cache::save(int pid)
 
     // if (p->label == 1)
     // {
-    ofstream fout(this->filename, ios::out | ios::app);
-    if (!fout.is_open())
-        throw runtime_error("error：can not find or create the file which named \"" + this->filename + "\".");
-    Json::FastWriter sw; // 单行输出，效率更高
-    fout << sw.write(json);
-    fout.close();
+    // ofstream fout(this->filename, ios::out | ios::app);
+    // if (!fout.is_open())
+    //     throw runtime_error("error：can not find or create the file which named \"" + this->filename + "\".");
+    // Json::FastWriter sw; // 单行输出，效率更高
+    // fout << sw.write(json);
+    // fout.close();
     // }
 }
