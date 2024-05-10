@@ -205,7 +205,7 @@ unordered_set<string> Label::black = {
     "C:\\Windows\\system32\\DllHost.exe /Processid:{AB8902B4-09CA-4BB6-B78D-A8F59079A8D5}",
     "C:\\Windows\\System32\\svchost.exe -k swprv",
     "C:\\Windows\\system32\\rundll32.exe sysmain.dll,PfSvWsSwapAssessmentTask",
-    "C:\\Windows\\system32\rundll32.exe Windows.Storage.ApplicationData.dll,CleanupTemporaryState",
+    "C:\\Windows\\system32\\rundll32.exe Windows.Storage.ApplicationData.dll,CleanupTemporaryState",
     "C:\\Windows\\system32\\wbem\\unsecapp.exe -Embedding",
     "C:\\Windows\\System32\\sdiagnhost.exe -Embedding",
     "C:\\Windows\\System32\\skydrive.exe -Embedding",
