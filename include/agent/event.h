@@ -10,6 +10,7 @@ struct Event
     long long timestamp;   // 时间戳
     int eventid;           // 事件ID
     std::string eventname; // 事件名
+    long long uKey = -1;   // Unique Key
     int pid;               // 进程ID
     std::string pname;     // 进程名
     std::string pcmd;      // 进程命令行

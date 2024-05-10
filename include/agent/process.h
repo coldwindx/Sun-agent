@@ -32,7 +32,7 @@ class Cache : public Singleton<Cache>
 
 public:
     void insert(std::shared_ptr<Process> p);
-    void add(const Event &event, int);
+    void add(const Event &event);
     void remove(int pid);
     void clear();
     bool have(int pid) const;

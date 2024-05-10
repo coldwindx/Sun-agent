@@ -11,7 +11,7 @@ void Cache::insert(std::shared_ptr<Process> p)
 {
     procCache[p->pid] = p;
 }
-void Cache::add(const Event &event, int cid)
+void Cache::add(const Event &event)
 {
     if (!procCache.count(event.pid))
     {
@@ -20,7 +20,7 @@ void Cache::add(const Event &event, int cid)
     }
 
     auto &channel = procChannel[event.pid];
-    channel[cid] += " " + event.eventname + " " + event.oname;
+    channel[event.cid] += " " + event.eventname + " " + event.oname;
 
     shared_ptr<Process> p = procCache[event.pid];
 
@@ -35,12 +35,12 @@ void Cache::remove(int pid)
     {
         if (0 < procCache[pid]->cntevents)
             save(pid);
-        auto p = procCache[pid];
-        if (procCache.count(p->ppid))
-            cout << p->ppid << "(" << procCache[p->ppid]->label << ")"
-                 << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
-        else
-            cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
+        // auto p = procCache[pid];
+        // if (procCache.count(p->ppid))
+        //     cout << p->ppid << "(" << procCache[p->ppid]->label << ")"
+        //          << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
+        // else
+        //     cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
         procCache.erase(pid);
         procChannel.erase(pid);
     }
@@ -50,11 +50,11 @@ void Cache::clear()
 {
     for (auto &[pid, p] : procCache)
     {
-        if (procCache.count(p->ppid))
-            cout << p->ppid << "(" << procCache[p->ppid]->label << ")"
-                 << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
-        else
-            cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << p->cmd << endl;
+        // if (procCache.count(p->ppid))
+        //     cout << p->ppid << "(" << procCache[p->ppid]->label << ")"
+        //          << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
+        // else
+        //     cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
         if (0 < p->cntevents)
             save(pid);
     }
@@ -91,13 +91,10 @@ void Cache::save(int pid)
     json["channel"] = channel[0];
     channel[0].clear();
 
-    // if (p->label == 1)
-    // {
-    // ofstream fout(this->filename, ios::out | ios::app);
-    // if (!fout.is_open())
-    //     throw runtime_error("error：can not find or create the file which named \"" + this->filename + "\".");
-    // Json::FastWriter sw; // 单行输出，效率更高
-    // fout << sw.write(json);
-    // fout.close();
-    // }
+    ofstream fout(this->filename, ios::out | ios::app);
+    if (!fout.is_open())
+        throw runtime_error("error：can not find or create the file which named \"" + this->filename + "\".");
+    Json::FastWriter sw; // 单行输出，效率更高
+    fout << sw.write(json);
+    fout.close();
 }

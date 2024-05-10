@@ -64,62 +64,37 @@ Event LogParser::parse(const Json::Value &json)
     event.tid = json["_source"]["TID"].asInt();
     event.index = json["_index"].asString();
 
-    Cache &cache = Singleton<Cache>::getInstance();
-
     if (event.eventid == 0x1)
     {
-        long long uniqueKey = json["_source"]["args"]["UniqueProcessKey"].asInt64();
+        event.uKey = json["_source"]["args"]["UniqueProcessKey"].asInt64();
         event.oid = event.pid;
         event.oname = subreplace(json["_source"]["args"]["CommandLine"].asString(), "\n", " ");
         event.cid = 0;
-
-        shared_ptr<Process> p = make_shared<Process>(uniqueKey, event.pid, event.pname, event.oname, event.ppid);
-        // 获取进程标签
-        p->label = Label::label(event);
-        p->index = event.index;
-        // cout << p->ppid << "-->" << p->pid << "(" << p->label << ")"
-        //      << ":" << p->cmd << endl;
-        cache.insert(p);
-        // 加入通道
-        cache.add(event, 0);
     }
     if (event.eventid == 0x2)
     {
         event.cid = 0;
-        Cache &cache = Singleton<Cache>::getInstance();
-        // 加入通道
-        cache.add(event, 0);
-        // 需要先加入通道，再删除进程信息，否则获取不到进程的标签
-        cache.remove(event.pid);
     }
     if (event.eventid & 0xC)
     {
         event.cid = 0;
         event.oname = subreplace(json["_source"]["args"]["TThreadId"].asString(), "\n", " ");
-        // 加入通道
-        cache.add(event, 0);
     }
     if (event.eventid & 0x10)
     {
         event.cid = 0;
         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
-        // 加入通道
-        cache.add(event, 0);
     }
     if (event.eventid & 0x3fe0) // 文件操作
     {
         event.cid = 0;
         event.oid = json["_source"]["args"]["FileKey"].asInt64();
         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
-        // 加入通道
-        cache.add(event, 0);
     }
     if (event.eventid & 0x1FC000) // 注册表操作
     {
         event.cid = 0;
         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
-        // 加入通道
-        cache.add(event, 0);
     }
     if (event.eventid & 0x200000)
     {
@@ -133,8 +108,6 @@ Event LogParser::parse(const Json::Value &json)
             event.oname += line.substr(1 + line.find_last_of(':')) + " ";
         }
         event.oname = subreplace(event.oname, "\n", " ");
-        // 加入通道
-        cache.add(event, 0);
     }
     return event;
 }
@@ -144,6 +117,7 @@ unordered_set<string> Label::white = {
     "aitagent.exe",
     "conhost.exe",
     "cscript.exe",
+    "chrome.exe",
     "explorer.exe",
     "fastpdf.exe",
     "fphelper.exe",
@@ -191,29 +165,72 @@ unordered_set<string> Label::white = {
     "wermgr.exe",
     "WinRAR.exe",
     "wpscloudsvr.exe",
-    "wpsupdate.exe"};
+    "wpsupdate.exe",
+    "msedge.exe",
+    "Unknown",
+    "wps.exe",
+    "csrss.exe",
+    "fpprotect.exe",
+    "TsService.exe",
+    "dwm.exe",
+    "QiyiService.exe",
+    "wpscenter.exe",
+    "ChsIME.exe",
+    "winlogon.exe",
+    "Feishu.exe",
+    "igfxEM.exe",
+    "CatLink.exe",
+    "logioptionsplus_agent.exe",
+    "MsMpEng.exe",
+    "OneApp.IGCC.WinService.exe",
+    "WeChatAppEx.exe",
+};
 unordered_set<string> Label::black = {
     "C:\\Windows\\System32\\vds.exe",
     "C:\\Windows\\sysWOW64\\wbem\\wmiprvse.exe -secured -Embedding",
+    "C:\\Windows\\system32\\svchost.exe -k iissvcs",
+    "C:\\Windows\\System32\\inetsrv\\iisrstas.exe -Embedding",
+    "C:\\Windows\\System32\\iisreset.exe /start /fail=1",
     "C:\\Windows\\system32\\svchost.exe -k netsvcs",
     "C:\\Windows\\system32\\svchost.exe -k NetworkService",
     "C:\\Windows\\system32\\SearchIndexer.exe /Embedding",
     "C:\\Windows\\System32\\svchost.exe -k swprv",
-    "C:\\Windows\\system32\\wbem\\wmiprvse.exe -secured -Embedding",
-    "C:\\Windows\\system32\\wbem\\wmiprvse.exe -Embedding",
+    "C:\\Windows\\system32\\wbem\\wmiprvse.exe -secured -Embedding", // *
+    "C:\\Windows\\system32\\wbem\\wmiprvse.exe -Embedding",          // *
     "\\??\\C:\\Windows\\system32\\conhost.exe 0xffffffff",
     "C:\\Windows\\system32\\vssvc.exe",
-    "C:\\Windows\\System32\vds.exe",
+    "C:\\Windows\\System32\\vds.exe",
     "C:\\Windows\\System32\\vdsldr.exe -Embedding",
     "C:\\Windows\\SysWOW64\\DllHost.exe /Processid:{45BA127D-10A8-46EA-8AB7-56EA9078943C}",
     "C:\\Windows\\system32\\DllHost.exe /Processid:{AB8902B4-09CA-4BB6-B78D-A8F59079A8D5}",
     "C:\\Windows\\System32\\svchost.exe -k swprv",
     "C:\\Windows\\system32\\rundll32.exe sysmain.dll,PfSvWsSwapAssessmentTask",
+    "C:\\Windows\\system32\rundll32.exe Windows.Storage.ApplicationData.dll,CleanupTemporaryState",
     "C:\\Windows\\system32\\wbem\\unsecapp.exe -Embedding",
+    "C:\\Windows\\System32\\sdiagnhost.exe -Embedding",
+    "C:\\Windows\\System32\\skydrive.exe -Embedding",
+    "C:\\Windows\\system32\\sc.exe start w32time task_started",
     "netsh  advfirewall set currentprofile state off",
     "netsh  firewall set opmode mode=disable",
     "C:\\Windows\\system32\\wbengine.exe",
+    "C:\\Windows\\system32\\aitagent.EXE /increment",
     "timeout  -c 5",
+    "C:\\Windows\\system32\\WerFault.exe -k -rq",
+    "taskhost.exe /RuntimeWide",
+    "taskhostex.exe Regular",
+    "taskhost.exe SYSTEM",
+    "C:\\Windows\\system32\\WerFault.exe -u -p 3188 -s 2576",
+    "C:\\Windows\\system32\\WerFault.exe -u -p 3188 -s 2604",
+    "C:\\Windows\\system32\\WerFault.exe -u -p 3188 -s 2328",
+    "C:\\Windows\\system32\\WerFault.exe -u -p 3188 -s 2580",
+    "C:\\Windows\\system32\\WerFault.exe -u -p 3188 -s 2604",
+    "C:\\Windows\\system32\\WerFault.exe -u -p 2868 -s 5672",
+    "C:\\Windows\\system32\\WerFault.exe -u -p 3188 -s 2116",
+    "C:\\Windows\\System32\\svchost.exe -k WerSvcGroup",
+    "C:\\Windows\\system32\\vssadmin.exe Delete Shadows /Quiet /All",
+    "taskkill  -f -im pg_ctl.exe",
+    "taskkill  -f -im fdlauncher.exe",
+    "net  stop MSSQL$MSFW",
 };
 
 int Label::label(const Event &event)
@@ -230,21 +247,19 @@ int Label::label(const Event &event)
         return 1;
     if (string::npos != event.pname.find(event.index.substr(1)))
         return 1;
-    // 黑白名单
+    // 断链的恶意进程
+    if (event.index == "" && event.pname == "Locator.exe")
+        return 1;
+    // 黑名单
     if (black.count(event.pcmd))
         return 1;
-    if (white.count(event.pname))
-        return 0;
     // 基于派生关系
     Cache &cache = Singleton<Cache>::getInstance();
     if (cache.have(event.ppid))
-    {
-        auto p = cache.getProcess(event.ppid);
-        if (event.eventid == 0x1 && event.ppid == 2832)
-            cout << event << endl;
-
-        return p->label;
-    }
+        return cache.getProcess(event.ppid)->label;
+    // 白名单
+    if (white.count(event.pname))
+        return 0;
     // 默认为恶意
     return 1;
 }
