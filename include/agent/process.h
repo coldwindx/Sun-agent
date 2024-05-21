@@ -27,7 +27,7 @@ struct Process
 class Cache : public Singleton<Cache>
 {
     std::unordered_map<int, std::shared_ptr<Process>> procCache;
-    std::unordered_map<int, std::string[4]> procChannel;
+    std::unordered_map<int, std::vector<int>> procChannel;
     std::string filename;
 
 public:
@@ -38,5 +38,5 @@ public:
     bool have(int pid) const;
     std::shared_ptr<Process> getProcess(int pid);
     void setFilename(std::string &filename);
-    void save(int pid);
+    void save();
 };

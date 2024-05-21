@@ -11,6 +11,30 @@ void Cache::insert(std::shared_ptr<Process> p)
 {
     procCache[p->pid] = p;
 }
+static unordered_map<std::string, int> str2id = {
+    {"ProcessStart", 1},
+    {"ProcessEnd", 2},
+    {"ThreadStart", 3},
+    {"ThreadEnd", 4},
+    {"ImageLoad", 5},
+    {"FileIOWrite", 6},
+    {"FileIORead", 7},
+    {"FileIOFileCreate", 8},
+    {"FileIORename", 8},
+    {"FileIOCreate", 10},
+    {"FileIOCleanup", 11},
+    {"FileIOClose", 12},
+    {"FileIODelete", 13},
+    {"FileIOFileDelete", 14},
+    {"RegistryCreate", 15},
+    {"RegistrySetValue", 16},
+    {"RegistryOpen", 17},
+    {"RegistryDelete", 18},
+    {"RegistrySetInformation", 19},
+    {"RegistryQuery", 20},
+    {"RegistryQueryValue", 21},
+    {"CallStack", 22},
+};
 void Cache::add(const Event &event)
 {
     if (!procCache.count(event.pid))
@@ -19,28 +43,17 @@ void Cache::add(const Event &event)
         procCache[event.pid]->index = event.index;
     }
 
-    auto &channel = procChannel[event.pid];
-    channel[event.cid] += " " + event.eventname + " " + event.oname;
+    if (!procChannel.count(event.pid))
+        procChannel[event.pid] = vector<int>(22, 0);
 
-    shared_ptr<Process> p = procCache[event.pid];
-
-    if (++(p->cntevents) < 8)
-        return;
-    save(event.pid);
-    p->cntevents %= 8;
+    if (procChannel[event.pid].size() == 0)
+        procChannel[event.pid].resize(22, 0);
+    procChannel[event.pid][str2id[event.eventname] - 1]++;
 }
 void Cache::remove(int pid)
 {
     if (procCache.count(pid))
     {
-        if (0 < procCache[pid]->cntevents)
-            save(pid);
-        // auto p = procCache[pid];
-        // if (procCache.count(p->ppid))
-        //     cout << p->ppid << "(" << procCache[p->ppid]->label << ")"
-        //          << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
-        // else
-        //     cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
         procCache.erase(pid);
         procChannel.erase(pid);
     }
@@ -48,16 +61,6 @@ void Cache::remove(int pid)
 
 void Cache::clear()
 {
-    for (auto &[pid, p] : procCache)
-    {
-        // if (procCache.count(p->ppid))
-        //     cout << p->ppid << "(" << procCache[p->ppid]->label << ")"
-        //          << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
-        // else
-        //     cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
-        if (0 < p->cntevents)
-            save(pid);
-    }
     procCache.clear();
     procChannel.clear();
 }
@@ -77,24 +80,27 @@ void Cache::setFilename(std::string &filename)
     this->filename = filename;
 }
 
-void Cache::save(int pid)
+void Cache::save()
 {
-    auto p = procCache[pid];
-    auto &channel = procChannel[pid];
+    ofstream fout("X.txt", ios::out | ios::app);
+    ofstream lout("L.txt", ios::out | ios::app);
+    for (auto &[pid, p] : procCache)
+    {
+        if (procChannel.count(pid))
+        {
+            auto &vc = procChannel[pid];
+            if (0 < vc.size())
+            {
+                fout << vc[0];
+                for (int i = 1; i < 22; ++i)
+                    fout << "," << vc[i];
+                fout << endl;
+                procChannel.erase(pid);
 
-    Json::Value json;
-    json["index"] = p->index;
-    json["unique_key"] = static_cast<Json::Int64>(p->uniqueKey);
-    json["pid"] = p->pid;
-    json["pname"] = p->name;
-    json["label"] = p->label;
-    json["channel"] = channel[0];
-    channel[0].clear();
-
-    ofstream fout(this->filename, ios::out | ios::app);
-    if (!fout.is_open())
-        throw runtime_error("error：can not find or create the file which named \"" + this->filename + "\".");
-    Json::FastWriter sw; // 单行输出，效率更高
-    fout << sw.write(json);
+                lout << p->label << endl;
+            }
+        }
+    }
     fout.close();
+    lout.close();
 }
