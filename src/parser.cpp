@@ -238,6 +238,8 @@ int Label::label(const Event &event)
     // 来自良性样本的全部为正常
     if (event.index == "kcyw-2024_01_11-000001")
         return 0;
+    if (event.index[0] == 'z')
+        return 0;
     // 勒索软件启动进程
     if (event.index == "k0dc058b5d67fee098b9e7b7babc48fa1" && event.pname == "Abandon.exe")
         return 1;
