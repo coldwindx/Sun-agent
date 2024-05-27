@@ -82,8 +82,8 @@ void Cache::setFilename(std::string &filename)
 
 void Cache::save()
 {
-    ofstream fout("X.txt", ios::out | ios::app);
-    ofstream lout("L.txt", ios::out | ios::app);
+    ofstream fout("X2.txt", ios::out | ios::app);
+    ofstream lout("L2.txt", ios::out | ios::app);
     for (auto &[pid, p] : procCache)
     {
         if (procChannel.count(pid))
