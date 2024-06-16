@@ -36,6 +36,9 @@ static unordered_map<std::string, int> str2etype = {
     {"RegistryQuery", 0x80000},
     {"RegistryQueryValue", 0x100000},
     {"CallStack", 0x200000},
+    {"TcpIpSendIPV4", 0x400000},
+    {"TcpIpRecvIPV4", 0x800000},
+
 };
 
 static std::string subreplace(const std::string &resource_str, const std::string &sub_str, const std::string &new_str)
@@ -70,19 +73,24 @@ Event LogParser::parse(const Json::Value &json)
         event.oid = event.pid;
         event.oname = subreplace(json["_source"]["args"]["CommandLine"].asString(), "\n", " ");
         event.cid = 0;
+        event.msg = to_string(event.ppid) + "\t" + "process" + "\t" + to_string(event.oid) + "\t" + "process" + "\t" + event.eventname + "\t" + to_string(event.timestamp) + "\n";
     }
     if (event.eventid == 0x2)
     {
+        event.oid = event.pid;
         event.cid = 0;
+        event.msg = to_string(event.ppid) + "\t" + "process" + "\t" + to_string(event.oid) + "\t" + "process" + "\t" + event.eventname + "\t" + to_string(event.timestamp) + "\n";
     }
     if (event.eventid & 0xC)
     {
+        event.oid = event.pid;
         event.cid = 0;
         event.oname = subreplace(json["_source"]["args"]["TThreadId"].asString(), "\n", " ");
     }
     if (event.eventid & 0x10)
     {
         event.cid = 0;
+        event.oid = json["_source"]["args"]["FileKey"].asInt64();
         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
     }
     if (event.eventid & 0x3fe0) // 文件操作
@@ -90,10 +98,12 @@ Event LogParser::parse(const Json::Value &json)
         event.cid = 0;
         event.oid = json["_source"]["args"]["FileKey"].asInt64();
         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
+        event.msg = to_string(event.ppid) + "\t" + "process" + "\t" + to_string(event.oid) + "\t" + "file" + "\t" + event.eventname + "\t" + to_string(event.timestamp) + "\n";
     }
     if (event.eventid & 0x1FC000) // 注册表操作
     {
         event.cid = 0;
+        event.oid = json["_source"]["args"]["FileKey"].asInt64();
         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
     }
     if (event.eventid & 0x200000)
@@ -108,6 +118,18 @@ Event LogParser::parse(const Json::Value &json)
             event.oname += line.substr(1 + line.find_last_of(':')) + " ";
         }
         event.oname = subreplace(event.oname, "\n", " ");
+    }
+    if (event.eventid == 0x400000)
+    {
+        event.daddr = json["_source"]["args"]["daddr"].asString();
+        // TcpIpSendIPV4
+        event.msg = to_string(event.ppid) + "\t" + "process" + "\t" + event.daddr + "\t" + "ip" + "\t" + event.eventname + "\t" + to_string(event.timestamp) + "\n";
+    }
+    if (event.eventid == 0x800000)
+    {
+        // TcpIpRecvIPV4
+        event.saddr = json["_source"]["args"]["saddr"].asString();
+        event.msg = to_string(event.ppid) + "\t" + "process" + "\t" + event.saddr + "\t" + "ip" + "\t" + event.eventname + "\t" + to_string(event.timestamp) + "\n";
     }
     return event;
 }

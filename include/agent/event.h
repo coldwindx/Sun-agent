@@ -20,6 +20,9 @@ struct Event
     long long oid;         // 事件对象ID
     std::string oname;     // 事件对象名
     int cid;               // 处理通道
+    std::string daddr;
+    std::string saddr;
+    std::string msg;
 
     friend std::ostream &operator<<(std::ostream &out, const Event &event);
 };

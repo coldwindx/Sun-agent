@@ -23,7 +23,7 @@ int main(int argc, char **argv)
 
     // std::string searchQuery{"{\"query\":{\"terms\":{\"Event.keyword\":[\"ProcessStart\",\"ProcessEnd\",\"ThreadStart\",\"ThreadEnd\",\"ImageLoad\",\"FileIOWrite\",\"FileIORead\",\"FileIOFileCreate\",\"FileIORename\",\"FileIOCreate\",\"FileIOCleanup\",\"FileIOClose\",\"FileIODelete\",\"FileIOFileDelete\",\"RegistryCreate\",\"RegistrySetValue\",\"RegistryOpen\",\"RegistryDelete\",\"RegistrySetInformation\",\"RegistryQuery\",\"RegistryQueryValue\",\"CallStack\"]}},\"sort\":[{\"TimeStamp\":{\"order\":\"asc\",\"unmapped_type\":\"keyword\"}}],\"size\":10000}"};
     // std::string searchQuery{"{\"query\":{\"terms\":{\"Event.keyword\":[\"ProcessStart\",\"ProcessEnd\"]}},\"sort\":[{\"TimeStamp\":{\"order\":\"asc\",\"unmapped_type\":\"keyword\"}}],\"size\":10000}"};
-    std::string searchQuery{"{\"query\":{\"terms\":{\"Event.keyword\":[\"ProcessStart\",\"ProcessEnd\",\"ThreadStart\",\"ThreadEnd\",\"ImageLoad\",\"FileIOWrite\",\"FileIORead\",\"FileIOFileCreate\",\"FileIORename\",\"FileIOCreate\",\"FileIOCleanup\",\"FileIOClose\",\"FileIODelete\",\"FileIOFileDelete\",\"RegistryCreate\",\"RegistrySetValue\",\"RegistryOpen\",\"RegistryDelete\",\"RegistrySetInformation\",\"RegistryQuery\",\"RegistryQueryValue\",\"CallStack\"]}},\"sort\":[{\"TimeStamp\":{\"order\":\"asc\",\"unmapped_type\":\"keyword\"}}],\"size\":10000}"};
+    std::string searchQuery{"{\"query\":{\"terms\":{\"Event.keyword\":[\"ProcessStart\",\"FileIOWrite\",\"FileIORead\",\"FileIOFileCreate\",\"FileIORename\",\"FileIOCreate\",\"FileIOCleanup\",\"FileIOClose\",\"FileIODelete\",\"FileIOFileDelete\",\"TcpIpSendIPV4\", \"TcpIpRecvIPV4\"]}},\"sort\":[{\"TimeStamp\":{\"order\":\"asc\",\"unmapped_type\":\"keyword\"}}],\"size\":10000}"};
 
     // test
     vector<string> test_samples = {"kad29f77ee86ed9827158347befa8998d", "k2218db42c1b69db72d7432c8d6fcab9d", "kcc378f899d56f8d3c76b9905b47a84a6", "k74d9610a72fa9ed105c927e3b1897c5b", "kba67dd5ab7d6061704f2903573cec303", "k5e271dbfb5803f600b30f7d9945024fd", "kc64eb31c168a78c8b17198b15ba7e638", "k38393408898e353857a18f481cf15935", "kc9ec0d9ff44f445ce5614cc87398b38d", "k21a563f958b73d453ad91e251b11855c", "k643c8c25fbe8c3cc7576bc8e7bcd8a68", "k81fc90c9f339042edc419e0a62a03e17", "k80d2cfccef17caa46226147c1b0648e6", "kdeebbea18401e8b5e83c410c6d3a8b4e", "k732a229132d455b98038e5a23432385d", "kdffd2b26085eddb88743ae3fc7be9eee", "k6992dd450b7581d7c2a040d15610a8c5", "k0c4502d6655264a9aa420274a0ddeaeb", "k209a288c68207d57e0ce6e60ebf60729", "k6e080aa085293bb9fbdcc9015337d309", "k58b70be83f9735f4e626054de966cc94", "keba85b706259f4dc0aec06a6a024609a", "kc24f6144e905b717a372c529d969611e", "k0a47084d98bed02037035d8e3120c241", "k087f42dd5c17b7c42723dfc150a8da42", "ke3dd1eb73e602ea95ad3e325d846d37c", "k33a7c3fe6c663032798a6780bb21599c", "k4edfdc708fb7cb3606ca68b6c288f979", "k77d0a95415ef989128805252cba93dc2", "k168447d837fc71deeee9f6c15e22d4f4", "k6c660f960daac148be75427c712d0134", "k84c82835a5d21bbcf75a61706d8ab549", "kb65b194c6cc134d56ba3acdcc7bd3051", "kd5fee0c6f1d0d730de259c64e6373a0c", "k1de48555aafd904f53e8b19f99658ce8", "k64497a0fa912f0e190359684de92be2d", "k2bbb2d9be1a993a8dfef0dd719c589a0", "ke4e439fc5ade188ba2c69367ba6731b6", "kc24f6144e905b717a372c529d969611e", "ke1e41506da591e55cee1825494ac8f42", "k2bbff2111232d73a93cd435300d0a07e", "k8c64c2ff302f64cf326897af8176d68e", "k00e3b3952d6cfe18aba4554a034f8e55", "kb7be2da288647b28c1697615e8d07b17", "kb572a0486274ee9c0ba816c1b91b87c7", "k25a54e24e9126fba91ccb92143136e9f", "ke3f6878bcafe2463f6028956f44a6e74", "k0880430c257ce49d7490099d2a8dd01a", "k5c7fb0927db37372da25f270708103a2", "k9ce01dfbf25dfea778e57d8274675d6f"};
@@ -40,9 +40,9 @@ int main(int argc, char **argv)
     for (auto &s : train_sampes_kzl)
         samples.push_back(move(s));
 
-    string filename = "threatrace.json";
-    Cache &cache = Singleton<Cache>::getInstance();
-    cache.setFilename(filename);
+    // string filename = "threatrace.json";
+    // Cache &cache = Singleton<Cache>::getInstance();
+    // cache.setFilename(filename);
 
     // unordered_set<string> vis;
     for (string &sample : samples)
@@ -51,13 +51,12 @@ int main(int argc, char **argv)
         // // Scroll all documents of type: docType from testindex which corresponding searchQuery
         scrollInstance.init(sample, "_doc", searchQuery);
 
+        string scene = "./threatrace/threatrace.json." + sample;
         Json::Value res;
         bool isSuccessful = true;
 
         LogParser parser;
-        // 同时发生的数据可能不是有序的，将ProcessEnd后置
-        Cache &cache = Singleton<Cache>::getInstance();
-        queue<Event> cq;
+
         long long sts = 0L, ets = 1000L;
         // Will scroll for all suitable documents
         while ((isSuccessful = scrollInstance.next(res)))
@@ -67,45 +66,20 @@ int main(int argc, char **argv)
                 // last scroll, no more results
                 break;
             }
-
+            vector<Event> cq;
             for (auto &hit : res["hits"])
             {
                 Event event = parser.parse(hit);
-                long long ts = event.timestamp;
-
-                if (ets < ts)
-                {
-                    vector<int> pids;
-                    while (!cq.empty() && cq.front().timestamp < ets)
-                    {
-                        auto e = cq.front();
-                        cache.add(e);
-                        cq.pop();
-                        pids.push_back(e.pid);
-                    }
-                    sts = ts, ets = ts + 1000L;
-                    cache.save();
-                    for (auto &pid : pids)
-                        cache.remove(pid);
-                }
-
-                if (event.eventid == 0x2)
-                {
-                    cq.push(event);
-                    continue;
-                }
-                else if (event.eventid == 0x1 || !cache.have(event.pid))
-                {
-                    shared_ptr<Process> p = make_shared<Process>(event.uKey, event.pid, event.pname, event.pcmd, event.ppid);
-                    p->label = Label::label(event);
-                    cache.insert(p);
-                }
-                cache.add(event);
+                cq.push_back(move(event));
             }
+            ofstream fout(scene, ios::out | ios::app);
+            for (auto &ev : cq)
+            {
+                fout << ev.msg;
+            }
+            fout.close();
         }
         scrollInstance.clear();
-        cache.save();
-        cache.clear();
     }
 
     cout << "End preprocess " << endl;
