@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "json/json.h"
 #include "agent/process.h"
+#include "agent/parser.h"
 
 using namespace std;
 
@@ -17,6 +18,7 @@ void Cache::add(const Event &event)
     {
         procCache[event.pid] = make_shared<Process>(0L, event.pid, event.pname, event.pcmd, event.ppid);
         procCache[event.pid]->index = event.index;
+        procCache[event.pid]->label = Label::label(event);
     }
 
     auto &channel = procChannel[event.pid];
