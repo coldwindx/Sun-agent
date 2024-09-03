@@ -16,6 +16,12 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
+    if (argc < 2)
+    {
+        printf("Must input filename!\n");
+        exit(0);
+    }
+    printf("%s %s\n", argv[0], argv[1]);
     // Prepare Client for nodes of one Elasticsearch cluster
     std::shared_ptr<elasticlient::Client> client = std::make_shared<elasticlient::Client>(
         std::vector<std::string>({"http://elastic:bupthtles@10.101.169.215:9200/"})); // last / is mandatory
@@ -33,23 +39,29 @@ int main(int argc, char **argv)
     vector<string> train_samples_z = {"z_plantvszombies", "z_kuwoyinyue", "z_kugouyinyue", "z_tencent_qq", "z_tencent_weixin", "z_360_qudongdashi", "z_360_liulanqi", "z_baidu_fanyi", "z_tencent_liulanqi", "z_baidu_liulanqi", "z_feishu", "z_google_liulanqi", "z_sougou_shurufa", "z_shouxinshurufa", "z_360_yasuo", "z_7z", "z_winrar", "z_xunlei", "z_visualstudio_installer", "z_dingding", "z_xiangrikui", "z_360_bizhi", "z_tencent_huiyi", "z_360_bangongzhushou", "z_yueshupdf", "z_todesk", "z_steam", "z_saolei", "z_wangyi_youxiang", "z_baidu_wenku", "z_codeblocks_installer", "z_codeblocks", "z_readpaper", "z_xmind", "z_sketchbook", "z_xiangrikui_yuanchengkongzhi", "z_tuguaishou", "z_ludashi", "z_bandicam", "z_mubu", "z_rainmeter", "z_dism"};
     vector<string> train_sampes_kzl = {"kzl-2024.01.11-000001"};
 
-    string filename = "mcdatasets.train.json";
+    string filename = string(argv[1]);
     Cache &cache = Singleton<Cache>::getInstance();
     cache.setFilename(filename);
 
     vector<string> samples;
-    // for (auto s : test_samples)
-    //     samples.push_back(s);
-    // for (auto s : test_samples_z)
-    //     samples.push_back(s);
-    for (auto s : val_samples)
-        samples.push_back(s);
-    for (auto s : train_samples)
-        samples.push_back(s);
-    for (auto s : train_samples_z)
-        samples.push_back(s);
-    for (auto s : train_sampes_kzl)
-        samples.push_back(s);
+    if (string::npos != filename.find("train"))
+    {
+        for (auto s : val_samples)
+            samples.push_back(s);
+        for (auto s : train_samples)
+            samples.push_back(s);
+        for (auto s : train_samples_z)
+            samples.push_back(s);
+        for (auto s : train_sampes_kzl)
+            samples.push_back(s);
+    }
+    if (string::npos != filename.find("eval"))
+    {
+        for (auto s : test_samples)
+            samples.push_back(s);
+        for (auto s : test_samples_z)
+            samples.push_back(s);
+    }
 
     for (string &sample : samples)
     {

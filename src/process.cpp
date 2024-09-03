@@ -77,6 +77,9 @@ shared_ptr<Process> Cache::getProcess(int pid)
 void Cache::setFilename(std::string &filename)
 {
     this->filename = filename;
+    this->fp = fopen(filename.c_str(), "w+");
+    // fprintf(this->fp, "index,unique_key,pid,pname,label,pchannel,fchannel,rchannel,achannel\n");
+    fprintf(this->fp, "index,unique_key,pid,pname,label,channel\n");
 }
 
 void Cache::save(int pid)
@@ -87,26 +90,15 @@ void Cache::save(int pid)
     if (p->index.size() == 0)
         throw runtime_error("error：No index!\n");
 
-    Json::Value json;
-    json["index"] = p->index;
-    json["unique_key"] = static_cast<Json::Int64>(p->uniqueKey);
-    json["pid"] = p->pid;
-    json["pname"] = p->name;
-    json["label"] = p->label;
-    json["pchannel"] = channel[0];
-    json["fchannel"] = channel[1];
-    json["rchannel"] = channel[2];
-    json["achannel"] = channel[3];
+    for (auto &v : channel)
+        std::replace(v.begin(), v.end(), ',', ' ');
+    // fprintf(this->fp, "%s,%ld,%d,%s,%d,%s,%s,%s,%s\n",
+    //         p->index.c_str(), static_cast<Json::Int64>(p->uniqueKey), p->pid, p->name.c_str(), p->label,
+    //         channel[0].c_str(), channel[1].c_str(), channel[2].c_str(), channel[3].c_str());
 
-    channel[0].clear();
-    channel[1].clear();
-    channel[2].clear();
-    channel[3].clear();
+    fprintf(this->fp, "%s,%ld,%d,%s,%d,%s\n",
+            p->index.c_str(), static_cast<Json::Int64>(p->uniqueKey), p->pid, p->name.c_str(), p->label, channel[0].c_str());
 
-    ofstream fout(this->filename, ios::out | ios::app);
-    if (!fout.is_open())
-        throw runtime_error("error：can not find or create the file which named \"" + this->filename + "\".");
-    Json::FastWriter sw; // 单行输出，效率更高
-    fout << sw.write(json);
-    fout.close();
+    for (auto &v : channel)
+        v.clear();
 }

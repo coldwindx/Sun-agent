@@ -29,6 +29,7 @@ class Cache : public Singleton<Cache>
     std::unordered_map<int, std::shared_ptr<Process>> procCache;
     std::unordered_map<int, std::string[4]> procChannel;
     std::string filename;
+    FILE *fp;
 
 public:
     void insert(std::shared_ptr<Process> p);
