@@ -82,23 +82,23 @@ Event LogParser::parse(const Json::Value &json)
     }
     if (event.eventid & 0x10)
     {
-        event.cid = 0;
+        event.cid = 1;
         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
     }
     if (event.eventid & 0x3fe0) // 文件操作
     {
-        event.cid = 0;
+        event.cid = 1;
         event.oid = json["_source"]["args"]["FileKey"].asInt64();
         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
     }
     if (event.eventid & 0x1FC000) // 注册表操作
     {
-        event.cid = 0;
+        event.cid = 2;
         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
     }
     if (event.eventid & 0x200000)
     {
-        event.cid = 0;
+        event.cid = 3;
         // API序列
         stringstream ss;
         string line;

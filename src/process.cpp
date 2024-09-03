@@ -84,14 +84,24 @@ void Cache::save(int pid)
     auto p = procCache[pid];
     auto &channel = procChannel[pid];
 
+    if (p->index.size() == 0)
+        throw runtime_error("error：No index!\n");
+
     Json::Value json;
     json["index"] = p->index;
     json["unique_key"] = static_cast<Json::Int64>(p->uniqueKey);
     json["pid"] = p->pid;
     json["pname"] = p->name;
     json["label"] = p->label;
-    json["channel"] = channel[0];
+    json["pchannel"] = channel[0];
+    json["fchannel"] = channel[1];
+    json["rchannel"] = channel[2];
+    json["achannel"] = channel[3];
+
     channel[0].clear();
+    channel[1].clear();
+    channel[2].clear();
+    channel[3].clear();
 
     ofstream fout(this->filename, ios::out | ios::app);
     if (!fout.is_open())
