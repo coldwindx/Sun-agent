@@ -1,43 +1,18 @@
-#include "agent/parser.h"
-#include "agent/event.h"
-#include "agent/process.h"
 #include <stdio.h>
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <functional>
 #include <json/json.h>
 #include <fstream>
 #include <sstream>
+#include "agent/event.h"
+#include "agent/process.h"
 #include "agent/parser.h"
 
 using namespace std;
 // Windows NT 时间起点，转换为Unix时间戳表示
 static const uint64_t EPOCH_AS_FILETIME = ((uint64_t)11644473600LL * (uint64_t)10000000);
-static unordered_map<std::string, int> str2etype = {
-    {"ProcessStart", 0x1},
-    {"ProcessEnd", 0x2},
-    {"ThreadStart", 0x4},
-    {"ThreadEnd", 0x8},
-    {"ImageLoad", 0x10},
-    {"FileIOWrite", 0x20},
-    {"FileIORead", 0x40},
-    {"FileIOFileCreate", 0x80},
-    {"FileIORename", 0x100},
-    {"FileIOCreate", 0x200},
-    {"FileIOCleanup", 0x400},
-    {"FileIOClose", 0x800},
-    {"FileIODelete", 0x1000},
-    {"FileIOFileDelete", 0x2000},
-    {"RegistryCreate", 0x4000},
-    {"RegistrySetValue", 0x8000},
-    {"RegistryOpen", 0x10000},
-    {"RegistryDelete", 0x20000},
-    {"RegistrySetInformation", 0x40000},
-    {"RegistryQuery", 0x80000},
-    {"RegistryQueryValue", 0x100000},
-    {"CallStack", 0x200000},
-};
-
 static std::string subreplace(const std::string &resource_str, const std::string &sub_str, const std::string &new_str)
 {
     std::string dst_str = resource_str;
@@ -49,13 +24,156 @@ static std::string subreplace(const std::string &resource_str, const std::string
     return dst_str;
 }
 
+static unordered_map<std::string, std::function<void(Event &event, const Json::Value &json)>> handlermanager = {
+    {"ProcessStart", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x1;
+         event.uKey = json["_source"]["args"]["UniqueProcessKey"].asInt64();
+         event.oid = event.pid;
+         event.oname = subreplace(json["_source"]["args"]["CommandLine"].asString(), "\n", " ");
+     }},
+    {"ProcessEnd", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x2;
+     }},
+    {"ThreadStart", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x4;
+         event.oname = subreplace(json["_source"]["args"]["TThreadId"].asString(), "\n", " ");
+     }},
+    {"ThreadEnd", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x8;
+         event.oname = subreplace(json["_source"]["args"]["TThreadId"].asString(), "\n", " ");
+     }},
+    {"ImageLoad", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x10;
+         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
+     }},
+    {"FileIOWrite", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x20;
+         event.oid = json["_source"]["args"]["FileKey"].asInt64();
+         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
+     }},
+    {"FileIORead", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x40;
+         event.oid = json["_source"]["args"]["FileKey"].asInt64();
+         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
+     }},
+    {"FileIOFileCreate", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x80;
+         event.oid = json["_source"]["args"]["FileKey"].asInt64();
+         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
+     }},
+    {"FileIORename", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x100;
+         event.oid = json["_source"]["args"]["FileKey"].asInt64();
+         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
+     }},
+    {"FileIOCreate", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x200;
+         event.oid = json["_source"]["args"]["FileKey"].asInt64();
+         event.oname = subreplace(json["_source"]["args"]["OpenPath"].asString(), "\n", " ");
+     }},
+    {"FileIOCleanup", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x400;
+         event.oid = json["_source"]["args"]["FileKey"].asInt64();
+         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
+     }},
+    {"FileIOClose", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x800;
+         event.oid = json["_source"]["args"]["FileKey"].asInt64();
+         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
+     }},
+    {"FileIODelete", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x1000;
+         event.oid = json["_source"]["args"]["FileKey"].asInt64();
+         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
+     }},
+    {"FileIOFileDelete", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x2000;
+         event.oid = json["_source"]["args"]["FileKey"].asInt64();
+         event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
+     }},
+    {"RegistryCreate", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x4000;
+         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
+     }},
+    {"RegistrySetValue", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x8000;
+         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
+     }},
+    {"RegistryOpen", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x10000;
+         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
+     }},
+    {"RegistryDelete", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x20000;
+         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
+     }},
+    {"RegistrySetInformation", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x40000;
+         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
+     }},
+    {"RegistryQuery", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x40000;
+         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
+     }},
+    {"RegistryQueryValue", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x100000;
+         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
+     }},
+    {"CallStack", [](Event &event, const Json::Value &json)
+     {
+         event.cid = 0;
+         event.eventid = 0x200000;
+         event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
+     }}};
+
 Event LogParser::parse(const Json::Value &json)
 {
     Event event;
     uint64_t ts = json["_source"]["TimeStamp"].asInt64();
     event.timestamp = (ts - EPOCH_AS_FILETIME) / 10000;
     event.eventname = json["_source"]["Event"].asString();
-    event.eventid = str2etype[event.eventname];
     event.pid = json["_source"]["PID"].asInt();
     event.pname = json["_source"]["PName"].asString();
     event.pcmd = json["_source"]["args"]["CommandLine"].asString();
@@ -64,51 +182,8 @@ Event LogParser::parse(const Json::Value &json)
     event.tid = json["_source"]["TID"].asInt();
     event.index = json["_index"].asString();
 
-    if (event.eventid == 0x1)
-    {
-        event.uKey = json["_source"]["args"]["UniqueProcessKey"].asInt64();
-        event.oid = event.pid;
-        event.oname = subreplace(json["_source"]["args"]["CommandLine"].asString(), "\n", " ");
-        event.cid = 0;
-    }
-    if (event.eventid == 0x2)
-    {
-        event.cid = 0;
-    }
-    if (event.eventid & 0xC)
-    {
-        event.cid = 0;
-        event.oname = subreplace(json["_source"]["args"]["TThreadId"].asString(), "\n", " ");
-    }
-    if (event.eventid & 0x10)
-    {
-        // event.cid = 1;
-        event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
-    }
-    if (event.eventid & 0x3fe0) // 文件操作
-    {
-        // event.cid = 1;
-        event.oid = json["_source"]["args"]["FileKey"].asInt64();
-        event.oname = subreplace(json["_source"]["args"]["FileName"].asString(), "\n", " ");
-    }
-    if (event.eventid & 0x1FC000) // 注册表操作
-    {
-        // event.cid = 2;
-        event.oname = subreplace(json["_source"]["args"]["KeyName"].asString(), "\n", " ");
-    }
-    if (event.eventid & 0x200000)
-    {
-        // event.cid = 3;
-        // API序列
-        stringstream ss;
-        string line;
-        ss << json["_source"]["args"]["stackInfo"].asString();
-        while (getline(ss, line, ','))
-        {
-            event.oname += line.substr(1 + line.find_last_of(':')) + " ";
-        }
-        event.oname = subreplace(event.oname, "\n", " ");
-    }
+    auto handle = handlermanager[event.eventname];
+    handle(event, json);
     return event;
 }
 

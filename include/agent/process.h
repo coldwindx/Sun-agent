@@ -7,6 +7,7 @@
 #include <memory>
 #include "tools.h"
 #include "event.h"
+#include "saver.h"
 
 struct Process
 {
@@ -18,7 +19,9 @@ struct Process
     std::string cmd;
     int label = 0;
     int sign;
+
     int cntevents = 0;
+    int total = 0;
 
     Process() {}
     Process(long long uniqueKey, int pid, const std::string &name, const std::string &cmd, int ppid) : uniqueKey(uniqueKey), pid(pid), name(name), cmd(cmd), ppid(ppid) {}
@@ -29,7 +32,7 @@ class Cache : public Singleton<Cache>
     std::unordered_map<int, std::shared_ptr<Process>> procCache;
     std::unordered_map<int, std::string[4]> procChannel;
     std::string filename;
-    FILE *fp;
+    Saver *saver;
 
 public:
     void insert(std::shared_ptr<Process> p);
@@ -38,6 +41,6 @@ public:
     void clear();
     bool have(int pid) const;
     std::shared_ptr<Process> getProcess(int pid);
-    void setFilename(std::string &filename);
+    void setSaver(Saver *saver);
     void save(int pid);
 };

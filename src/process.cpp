@@ -26,6 +26,7 @@ void Cache::add(const Event &event)
 
     shared_ptr<Process> p = procCache[event.pid];
 
+    p->total++;
     if (++(p->cntevents) < 8)
         return;
     save(event.pid);
@@ -37,26 +38,19 @@ void Cache::remove(int pid)
     {
         if (0 < procCache[pid]->cntevents)
             save(pid);
-        // auto p = procCache[pid];
-        // if (procCache.count(p->ppid))
-        //     cout << p->ppid << "(" << procCache[p->ppid]->label << ")"
-        //          << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
-        // else
-        //     cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
         procCache.erase(pid);
         procChannel.erase(pid);
     }
 }
 
+void Cache::setSaver(Saver *saver)
+{
+    this->saver = saver;
+}
 void Cache::clear()
 {
     for (auto &[pid, p] : procCache)
     {
-        // if (procCache.count(p->ppid))
-        //     cout << p->ppid << "(" << procCache[p->ppid]->label << ")"
-        //          << ":" << procCache[p->ppid]->name << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
-        // else
-        //     cout << p->ppid << "--->" << p->pid << "(" << p->label << ")" << (p->cmd == "" ? p->name : p->cmd) << endl;
         if (0 < p->cntevents)
             save(pid);
     }
@@ -74,14 +68,6 @@ shared_ptr<Process> Cache::getProcess(int pid)
     return procCache[pid];
 }
 
-void Cache::setFilename(std::string &filename)
-{
-    this->filename = filename;
-    this->fp = fopen(filename.c_str(), "w+");
-    // fprintf(this->fp, "index,unique_key,pid,pname,label,pchannel,fchannel,rchannel,achannel\n");
-    fprintf(this->fp, "index,unique_key,pid,pname,label,channel\n");
-}
-
 void Cache::save(int pid)
 {
     auto p = procCache[pid];
@@ -90,14 +76,21 @@ void Cache::save(int pid)
     if (p->index.size() == 0)
         throw runtime_error("error：No index!\n");
 
-    for (auto &v : channel)
-        std::replace(v.begin(), v.end(), ',', ' ');
-    // fprintf(this->fp, "%s,%ld,%d,%s,%d,%s,%s,%s,%s\n",
-    //         p->index.c_str(), static_cast<Json::Int64>(p->uniqueKey), p->pid, p->name.c_str(), p->label,
-    //         channel[0].c_str(), channel[1].c_str(), channel[2].c_str(), channel[3].c_str());
+    Json::Value json;
+    json["index"] = p->index;
+    json["unique_key"] = static_cast<Json::Int64>(p->uniqueKey);
+    json["pid"] = p->pid;
+    json["pname"] = p->name;
+    json["label"] = p->label;
+    // json["pchannel"] = channel[0];
+    // json["fchannel"] = channel[1];
+    // json["rchannel"] = channel[2];
+    // json["achannel"] = channel[3];
+    json["total"] = p->total;
+    json["cnt_event"] = p->cntevents;
 
-    fprintf(this->fp, "%s,%ld,%d,%s,%d,%s\n",
-            p->index.c_str(), static_cast<Json::Int64>(p->uniqueKey), p->pid, p->name.c_str(), p->label, channel[0].c_str());
+    Json::FastWriter sw; // 单行输出，效率更高
+    saver->write(sw.write(json));
 
     for (auto &v : channel)
         v.clear();

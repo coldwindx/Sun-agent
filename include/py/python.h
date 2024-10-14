@@ -2,6 +2,7 @@
 
 #include <Python.h>
 #include <string>
+#include <stdexcept>
 
 namespace py
 {
